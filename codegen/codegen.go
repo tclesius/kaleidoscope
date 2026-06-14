@@ -31,7 +31,7 @@ func (cg *CodeGen) codegenExpr(expr parser.Expr) (llvm.Value, error) {
 }
 
 func (cg *CodeGen) codegenNumberExpr(expr parser.NumberExpr) llvm.Value {
-	return llvm.ConstFloat(cg.ctx.DoubleType(), expr.Val)
+	return llvm.ConstInt(cg.ctx.Int32Type(), uint64(int32(expr.Val)), true)
 }
 
 func (cg *CodeGen) codegenVariableExpr(expr parser.VariableExpr) (llvm.Value, error) {
@@ -55,15 +55,14 @@ func (cg *CodeGen) codegenBinaryExpr(e parser.BinaryExpr) (llvm.Value, error) {
 
 	switch e.Op {
 	case '+':
-		return cg.builder.CreateFAdd(l, r, "addtmp"), nil
+		return cg.builder.CreateAdd(l, r, "addtmp"), nil
 	case '-':
-		return cg.builder.CreateFSub(l, r, "subtmp"), nil
+		return cg.builder.CreateSub(l, r, "subtmp"), nil
 	case '*':
-		return cg.builder.CreateFMul(l, r, "multmp"), nil
+		return cg.builder.CreateMul(l, r, "multmp"), nil
 	case '<':
-		cmp := cg.builder.CreateFCmp(llvm.FloatULT, l, r, "cmptmp")
-		// Convert bool 0/1 to double 0.0 or 1.0
-		return cg.builder.CreateUIToFP(cmp, cg.ctx.DoubleType(), "booltmp"), nil
+		cmp := cg.builder.CreateICmp(llvm.IntSLT, l, r, "cmptmp")
+		return cg.builder.CreateZExt(cmp, cg.ctx.Int32Type(), "booltmp"), nil
 	default:
 		return llvm.Value{}, fmt.Errorf("Invalid binary operator `%q`", e.Op)
 	}
@@ -89,13 +88,12 @@ func (cg *CodeGen) codegenCallExpr(e parser.CallExpr) (llvm.Value, error) {
 }
 
 func (cg *CodeGen) codegenPrototype(proto parser.Prototype) (llvm.Value, error) {
-	// Make the function type:  double(double,double) etc.
-	doubles := make([]llvm.Type, len(proto.Args))
-	for i := range doubles {
-		doubles[i] = cg.ctx.DoubleType()
+	ints := make([]llvm.Type, len(proto.Args))
+	for i := range ints {
+		ints[i] = cg.ctx.Int32Type()
 	}
 
-	fnType := llvm.FunctionType(cg.ctx.DoubleType(), doubles, false)
+	fnType := llvm.FunctionType(cg.ctx.Int32Type(), ints, false)
 	fn := llvm.AddFunction(cg.module, proto.Name, fnType)
 	fn.SetLinkage(llvm.ExternalLinkage) // function may be defined outside the current module
 

@@ -2,9 +2,9 @@ package main
 
 import (
 	"fmt"
-	"os"
 	"tclesius/kaleidoscope/codegen"
 	"tclesius/kaleidoscope/lexer"
+	"tclesius/kaleidoscope/linker"
 	"tclesius/kaleidoscope/parser"
 	"time"
 
@@ -17,7 +17,7 @@ func main() {
 	var elapsed time.Duration
 
 	start = time.Now()
-	tokens := lexer.Lex("def add(x y) x + y")
+	tokens := lexer.Lex("def main() 1")
 	elapsed = time.Since(start)
 	fmt.Printf("Lexer took: %s\n", &elapsed)
 
@@ -36,8 +36,8 @@ func main() {
 	}
 	elapsed = time.Since(start)
 	fmt.Printf("Codegen took: %s\n", &elapsed)
-	fmt.Printf("----------\n")
-	//fmt.Print(code.String())
+	// fmt.Printf("----------\n")
+	// fmt.Print(code.String())
 
 	targetTriple := llvm.DefaultTargetTriple()
 
@@ -75,8 +75,12 @@ func main() {
 	}
 	defer buf.Dispose()
 
-	err = os.WriteFile("output.o", buf.Bytes(), 0644)
+	start = time.Now()
+	err = linker.LinkObject(buf.Bytes(), "output")
 	if err != nil {
 		panic(err)
 	}
+	elapsed = time.Since(start)
+	fmt.Printf("Linker took: %s\n", &elapsed)
+
 }
