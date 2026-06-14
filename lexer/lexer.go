@@ -14,7 +14,7 @@ const (
 	// commands
 	DEF    = -2
 	EXTERN = -3
-	//primary
+	// primary
 	IDENTIFIER = -4
 	NUMBER     = -5
 )
@@ -47,15 +47,12 @@ func (l *Lexer) eof() bool {
 
 func (l *Lexer) advance() {
 	ch, _, err := l.r.ReadRune()
-	if err != nil {
-		l.curr = 0
-		l.err = err
-		return
-	}
-
 	l.curr = ch
-	l.err = nil
-	l.pos++
+	l.err = err
+
+	if err == nil {
+		l.pos++
+	}
 }
 
 func (l *Lexer) consume() rune {
