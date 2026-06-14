@@ -1,7 +1,6 @@
 package lexer
 
 import (
-	"bufio"
 	"io"
 	"strings"
 	"unicode"
@@ -25,20 +24,10 @@ type Token struct {
 }
 
 type Lexer struct {
-	r    *bufio.Reader
+	r    *strings.Reader
 	curr rune
 	pos  int
 	err  error
-}
-
-func NewLexer(input io.Reader) *Lexer {
-	l := &Lexer{
-		r:   bufio.NewReader(input),
-		pos: -1,
-	}
-
-	l.advance()
-	return l
 }
 
 func (l *Lexer) eof() bool {
@@ -109,7 +98,7 @@ func (l *Lexer) lexNumeric() Token {
 	return Token{NUMBER, numeric.String()}
 }
 
-func (l *Lexer) NextToken() Token {
+func (l *Lexer) nextToken() Token {
 	l.skipWhitespace()
 
 	if unicode.IsLetter(l.peek()) {
@@ -130,4 +119,24 @@ func (l *Lexer) NextToken() Token {
 
 	ch := l.consume()
 	return Token{TokenType(ch), string(ch)}
+}
+
+func Lex(s string) []Token {
+	l := Lexer{
+		r:   strings.NewReader(s),
+		pos: -1,
+	}
+	l.advance()
+
+	var tokens []Token
+	for {
+		tok := l.nextToken()
+		tokens = append(tokens, tok)
+
+		if tok.Type == EOF {
+			break
+		}
+	}
+
+	return tokens
 }

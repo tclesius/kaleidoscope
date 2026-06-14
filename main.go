@@ -2,59 +2,36 @@ package main
 
 import (
 	"fmt"
-	"os"
+	"tclesius/kaleidoscope/codegen"
 	"tclesius/kaleidoscope/lexer"
 	"tclesius/kaleidoscope/parser"
+	"time"
 )
 
-func handleDefinition(p *parser.Parser) {
-	if _, err := p.ParseDefinition(); err == nil {
-		fmt.Fprintln(os.Stderr, "Parsed a function definition.")
-	} else {
-		fmt.Fprintln(os.Stderr, err)
-		p.Advance()
-	}
-}
-
-func handleExtern(p *parser.Parser) {
-	if _, err := p.ParseExtern(); err == nil {
-		fmt.Fprintln(os.Stderr, "Parsed an extern")
-	} else {
-		fmt.Fprintln(os.Stderr, err)
-		p.Advance()
-	}
-}
-
-func handleTopLevelExpression(p *parser.Parser) {
-	if _, err := p.ParseTopLevelExpr(); err == nil {
-		fmt.Fprintln(os.Stderr, "Parsed a top-level expr")
-	} else {
-		fmt.Fprintln(os.Stderr, err)
-		p.Advance()
-	}
-}
-
-func mainLoop(p *parser.Parser) {
-	for {
-		fmt.Fprint(os.Stderr, "ready> ")
-
-		switch p.Peek().Type {
-		case lexer.EOF:
-			return
-		case lexer.TokenType(';'):
-			p.Advance()
-		case lexer.DEF:
-			handleDefinition(p)
-		case lexer.EXTERN:
-			handleExtern(p)
-		default:
-			handleTopLevelExpression(p)
-		}
-	}
-}
-
 func main() {
-	l := lexer.NewLexer(os.Stdin)
-	p := parser.NewParser(l)
-	mainLoop(p)
+	var start time.Time
+	var elapsed time.Duration
+
+	start = time.Now()
+	tokens := lexer.Lex("4+5")
+	elapsed = time.Since(start)
+	fmt.Printf("Lexer took: %s\n", &elapsed)
+
+	start = time.Now()
+	program, err := parser.Parse(tokens)
+	if err != nil {
+		panic(err)
+	}
+	elapsed = time.Since(start)
+	fmt.Printf("Parser took: %s\n", &elapsed)
+
+	start = time.Now()
+	code, err := codegen.Gen(program)
+	if err != nil {
+		panic(err)
+	}
+	elapsed = time.Since(start)
+	fmt.Printf("Codegen took: %s\n", &elapsed)
+	fmt.Printf("----------\n")
+	fmt.Print(code.String())
 }

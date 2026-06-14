@@ -42,29 +42,13 @@ type Function struct {
 ////
 
 type Parser struct {
-	lexer      *lexer.Lexer
-	curr       lexer.Token
+	tokens     []lexer.Token
+	curr       int
 	precedence map[string]int
 }
 
-func NewParser(lexer *lexer.Lexer) *Parser {
-	p := &Parser{
-		lexer: lexer,
-		precedence: map[string]int{
-			"<": 10,
-			//">": 10,
-			"+": 20,
-			"-": 20,
-			"*": 30,
-			//"/": 30,
-		},
-	}
-
-	p.advance()
-	return p
-}
 func (p *Parser) peekPrecedence() int {
-	val, ok := p.precedence[p.Peek().Value]
+	val, ok := p.precedence[p.peek().Value]
 	if !ok {
 		return -1
 	}
@@ -72,21 +56,22 @@ func (p *Parser) peekPrecedence() int {
 }
 
 func (p *Parser) advance() {
-	p.curr = p.lexer.NextToken()
-}
-
-func (p *Parser) Advance() {
-	p.advance()
+	if p.curr < len(p.tokens)-1 {
+		p.curr += 1
+	}
 }
 
 func (p *Parser) consume() lexer.Token {
-	tok := p.curr
+	tok := p.peek()
 	p.advance()
 	return tok
 }
 
-func (p *Parser) Peek() lexer.Token { // TODO: make private
-	return p.curr
+func (p *Parser) peek() lexer.Token {
+	if p.curr >= len(p.tokens) {
+		return lexer.Token{Type: lexer.EOF}
+	}
+	return p.tokens[p.curr]
 }
 
 func (p *Parser) parseNumberExpr() (Expr, error) {
@@ -111,8 +96,8 @@ func (p *Parser) parseParenExpr() (Expr, error) {
 		return nil, error
 	}
 
-	if p.Peek().Value != ")" {
-		return nil, fmt.Errorf("Error: Expected ')'")
+	if p.peek().Value != ")" {
+		return nil, fmt.Errorf("Expected ')'")
 	}
 	p.consume() // )
 	return result, nil
@@ -124,7 +109,7 @@ func (p *Parser) parseIdentifierExpr() (Expr, error) {
 	///   ::= identifier '(' expression* ')'
 	name := p.consume() // ident name
 
-	if p.Peek().Value != "(" {
+	if p.peek().Value != "(" {
 		// Simple variable ref.
 		return VariableExpr{Name: name.Value}, nil
 	}
@@ -132,7 +117,7 @@ func (p *Parser) parseIdentifierExpr() (Expr, error) {
 	// Call
 	p.consume() // (
 	var args []Expr
-	for p.Peek().Value != ")" {
+	for p.peek().Value != ")" {
 		arg, error := p.parseExpression()
 
 		if error != nil {
@@ -140,11 +125,11 @@ func (p *Parser) parseIdentifierExpr() (Expr, error) {
 		}
 
 		args = append(args, arg)
-		if p.Peek().Value == ")" {
+		if p.peek().Value == ")" {
 			break
 		}
-		if p.Peek().Value != "," {
-			return nil, fmt.Errorf("Error: Expected ')' or ',' in argument list")
+		if p.peek().Value != "," {
+			return nil, fmt.Errorf("Expected ')' or ',' in argument list")
 		}
 		p.consume() // ,
 	}
@@ -161,9 +146,9 @@ func (p *Parser) parsePrimary() (Expr, error) {
 	///   ::= identifierexpr
 	///   ::= numberexpr
 	///   ::= parenexpr
-	switch p.Peek().Type {
+	switch p.peek().Type {
 	default:
-		return nil, fmt.Errorf("Error: Unknown token when expecting an expression")
+		return nil, fmt.Errorf("Unknown token when expecting an expression")
 	case lexer.IDENTIFIER:
 		return p.parseIdentifierExpr()
 	case lexer.NUMBER:
@@ -221,25 +206,25 @@ func (p *Parser) parseBinOpRhs(minPrecedence int, lhs Expr) (Expr, error) {
 func (p *Parser) parsePrototype() (*Prototype, error) {
 	/// prototype
 	///   ::= id '(' id* ')'
-	if p.Peek().Type != lexer.IDENTIFIER {
-		return nil, fmt.Errorf("Error: Expected function name in prototype")
+	if p.peek().Type != lexer.IDENTIFIER {
+		return nil, fmt.Errorf("Expected function name in prototype")
 	}
 
 	fnName := p.consume().Value
 
-	if p.Peek().Value != "(" {
-		return nil, fmt.Errorf("Error: Expected '(' in prototype")
+	if p.peek().Value != "(" {
+		return nil, fmt.Errorf("Expected '(' in prototype")
 	}
 	p.consume() // (
 
 	// Read the list of argument names.
 	var argNames []string
-	for p.Peek().Type == lexer.IDENTIFIER {
+	for p.peek().Type == lexer.IDENTIFIER {
 		argNames = append(argNames, p.consume().Value)
 	}
 
-	if p.Peek().Value != ")" {
-		return nil, fmt.Errorf("Error: Expected ')' in prototype")
+	if p.peek().Value != ")" {
+		return nil, fmt.Errorf("Expected ')' in prototype")
 	}
 	// success.
 	p.consume() // ')'
@@ -269,7 +254,11 @@ func (p *Parser) parseDefinition() (Expr, error) {
 func (p *Parser) parseExtern() (Expr, error) {
 	/// external ::= 'extern' prototype
 	p.consume() // 'extern'
-	return p.parsePrototype()
+	proto, err := p.parsePrototype()
+	if err != nil {
+		return nil, err
+	}
+	return *proto, nil
 }
 
 func (p *Parser) parseTopLevelExpr() (Expr, error) {
@@ -289,14 +278,43 @@ func (p *Parser) parseTopLevelExpr() (Expr, error) {
 	}, nil
 }
 
-func (p *Parser) ParseDefinition() (Expr, error) {
-	return p.parseDefinition()
-}
+func Parse(t []lexer.Token) ([]Expr, error) {
+	p := &Parser{
+		tokens: t,
+		precedence: map[string]int{
+			"<": 10,
+			//">": 10,
+			"+": 20,
+			"-": 20,
+			"*": 30,
+			//"/": 30,
+		},
+	}
+	var program []Expr
+	for p.peek().Type != lexer.EOF {
+		switch p.peek().Type {
+		case lexer.TokenType(';'):
+			p.advance()
+		case lexer.DEF:
+			expr, err := p.parseDefinition()
+			if err != nil {
+				return nil, err
+			}
+			program = append(program, expr)
+		case lexer.EXTERN:
+			expr, err := p.parseExtern()
+			if err != nil {
+				return nil, err
+			}
+			program = append(program, expr)
+		default:
+			expr, err := p.parseTopLevelExpr()
+			if err != nil {
+				return nil, err
+			}
+			program = append(program, expr)
+		}
+	}
 
-func (p *Parser) ParseExtern() (Expr, error) {
-	return p.parseExtern()
-}
-
-func (p *Parser) ParseTopLevelExpr() (Expr, error) {
-	return p.parseTopLevelExpr()
+	return program, nil
 }
