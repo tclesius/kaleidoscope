@@ -9,7 +9,7 @@ import (
 type Expr any
 
 type NumberExpr struct {
-	Val float64
+	Val int32
 }
 
 type VariableExpr struct {
@@ -84,12 +84,12 @@ func (p *Parser) parseNumberExpr() (Expr, error) {
 	/// numberexpr ::= number
 	result := p.consume()
 
-	s, error := strconv.ParseFloat(result.Value, 64)
-	if error != nil {
-		return nil, error
+	n, err := strconv.ParseInt(result.Value, 10, 32)
+	if err != nil {
+		return nil, err
 	}
 	return NumberExpr{
-		Val: s,
+		Val: int32(n),
 	}, nil
 }
 
@@ -303,23 +303,6 @@ func (p *Parser) parseExtern() (Expr, error) {
 	return *proto, nil
 }
 
-func (p *Parser) parseTopLevelExpr() (Expr, error) {
-	/// toplevelexpr ::= expression
-
-	expr, err := p.parseExpression()
-	if err != nil {
-		return nil, err
-	}
-	// Make an anonymous proto.
-	proto := Prototype{
-		Name: "__anon_expr",
-	}
-	return Function{
-		Proto: proto,
-		Body:  expr,
-	}, nil
-}
-
 func Parse(t []lexer.Token) ([]Expr, error) {
 	p := &Parser{
 		tokens: t,
@@ -350,11 +333,7 @@ func Parse(t []lexer.Token) ([]Expr, error) {
 			}
 			program = append(program, expr)
 		default:
-			expr, err := p.parseTopLevelExpr()
-			if err != nil {
-				return nil, err
-			}
-			program = append(program, expr)
+			return nil, fmt.Errorf("expected 'def' or 'extern', got %q", p.peek().Value)
 		}
 	}
 

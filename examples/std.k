@@ -1,5 +1,4 @@
-extern sin(arg);
-extern cos(arg);
-extern atan2(arg1 arg2);
+extern putchar(c);
 
-atan2(sin(.4), cos(42))
+def main()
+  putchar(65)

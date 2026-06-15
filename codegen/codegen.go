@@ -33,7 +33,7 @@ func (cg *CodeGen) codegenExpr(expr parser.Expr) (llvm.Value, error) {
 }
 
 func (cg *CodeGen) codegenNumberExpr(expr parser.NumberExpr) llvm.Value {
-	return llvm.ConstInt(cg.ctx.Int32Type(), uint64(int32(expr.Val)), true)
+	return llvm.ConstInt(cg.ctx.Int32Type(), uint64(expr.Val), true)
 }
 
 func (cg *CodeGen) codegenVariableExpr(expr parser.VariableExpr) (llvm.Value, error) {
@@ -86,7 +86,7 @@ func (cg *CodeGen) codegenCallExpr(e parser.CallExpr) (llvm.Value, error) {
 		}
 		args = append(args, val)
 	}
-	return cg.builder.CreateCall(callee.Type().ElementType(), callee, args, "calltmp"), nil
+	return cg.builder.CreateCall(callee.GlobalValueType(), callee, args, "calltmp"), nil
 }
 
 func (cg *CodeGen) codegenIfExpr(e parser.IfExpr) (llvm.Value, error) {

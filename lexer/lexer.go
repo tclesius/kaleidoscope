@@ -105,7 +105,7 @@ func (l *Lexer) lexIdentifier() Token {
 func (l *Lexer) lexNumeric() Token {
 	var numeric strings.Builder
 
-	for unicode.IsDigit(l.peek()) || l.peek() == '.' {
+	for unicode.IsDigit(l.peek()) {
 		numeric.WriteRune(l.consume())
 	}
 
@@ -113,18 +113,21 @@ func (l *Lexer) lexNumeric() Token {
 }
 
 func (l *Lexer) nextToken() Token {
-	l.skipWhitespace()
+	for {
+		l.skipWhitespace()
 
-	if unicode.IsLetter(l.peek()) {
-		return l.lexIdentifier()
+		if l.peek() != '#' {
+			break
+		}
+		l.skipComment()
 	}
 
-	if unicode.IsDigit(l.peek()) || l.peek() == '.' {
+	if unicode.IsDigit(l.peek()) {
 		return l.lexNumeric()
 	}
 
-	if l.peek() == '#' {
-		l.skipComment()
+	if unicode.IsLetter(l.peek()) {
+		return l.lexIdentifier()
 	}
 
 	if l.eof() {
