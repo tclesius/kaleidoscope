@@ -16,6 +16,11 @@ const (
 	// primary
 	IDENTIFIER = -4
 	NUMBER     = -5
+
+	// control
+	IF   = -6
+	THEN = -7
+	ELSE = -8
 )
 
 type Token struct {
@@ -83,6 +88,15 @@ func (l *Lexer) lexIdentifier() Token {
 	}
 	if ident.String() == "extern" {
 		return Token{EXTERN, ident.String()}
+	}
+	if ident.String() == "if" {
+		return Token{IF, ident.String()}
+	}
+	if ident.String() == "then" {
+		return Token{THEN, ident.String()}
+	}
+	if ident.String() == "else" {
+		return Token{ELSE, ident.String()}
 	}
 
 	return Token{IDENTIFIER, ident.String()}

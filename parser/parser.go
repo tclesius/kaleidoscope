@@ -27,6 +27,12 @@ type CallExpr struct {
 	Args   []Expr
 }
 
+type IfExpr struct {
+	Cond Expr
+	Then Expr
+	Else Expr
+}
+
 type Prototype struct {
 	// Represents the "Prototype" of a function,
 	Name string
@@ -118,10 +124,10 @@ func (p *Parser) parseIdentifierExpr() (Expr, error) {
 	p.consume() // (
 	var args []Expr
 	for p.peek().Value != ")" {
-		arg, error := p.parseExpression()
+		arg, err := p.parseExpression()
 
-		if error != nil {
-			return nil, error
+		if err != nil {
+			return nil, err
 		}
 
 		args = append(args, arg)
@@ -141,11 +147,45 @@ func (p *Parser) parseIdentifierExpr() (Expr, error) {
 	}, nil
 }
 
+func (p *Parser) parseIfExpr() (Expr, error) {
+	p.consume() // if
+
+	// condition
+	cond, err := p.parseExpression()
+	if err != nil {
+		return nil, err
+	}
+
+	if p.consume().Type != lexer.THEN {
+		return nil, fmt.Errorf("Exprected then")
+	}
+
+	then, err := p.parseExpression()
+	if err != nil {
+		return nil, err
+	}
+
+	if p.consume().Type != lexer.ELSE {
+		return nil, fmt.Errorf("Exprected else")
+	}
+
+	el, err := p.parseExpression()
+	if err != nil {
+		return nil, err
+	}
+	return IfExpr{
+		Cond: cond,
+		Then: then,
+		Else: el,
+	}, nil
+}
+
 func (p *Parser) parsePrimary() (Expr, error) {
 	/// primary
 	///   ::= identifierexpr
 	///   ::= numberexpr
 	///   ::= parenexpr
+	///   ::= ifexpr
 	switch p.peek().Type {
 	default:
 		return nil, fmt.Errorf("Unknown token when expecting an expression")
@@ -155,6 +195,8 @@ func (p *Parser) parsePrimary() (Expr, error) {
 		return p.parseNumberExpr()
 	case '(':
 		return p.parseParenExpr()
+	case lexer.IF:
+		return p.parseIfExpr()
 	}
 }
 

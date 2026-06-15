@@ -17,7 +17,7 @@ func main() {
 	var elapsed time.Duration
 
 	start = time.Now()
-	tokens := lexer.Lex("def main() 1")
+	tokens := lexer.Lex("def main() if 0 then 3 else 0")
 	elapsed = time.Since(start)
 	fmt.Printf("Lexer took: %s\n", &elapsed)
 

@@ -25,6 +25,8 @@ func (cg *CodeGen) codegenExpr(expr parser.Expr) (llvm.Value, error) {
 		return cg.codegenBinaryExpr(e)
 	case parser.CallExpr:
 		return cg.codegenCallExpr(e)
+	case parser.IfExpr:
+		return cg.codegenIfExpr(e)
 	default:
 		return llvm.Value{}, fmt.Errorf("Unknown expr type")
 	}
@@ -85,6 +87,53 @@ func (cg *CodeGen) codegenCallExpr(e parser.CallExpr) (llvm.Value, error) {
 		args = append(args, val)
 	}
 	return cg.builder.CreateCall(callee.Type().ElementType(), callee, args, "calltmp"), nil
+}
+
+func (cg *CodeGen) codegenIfExpr(e parser.IfExpr) (llvm.Value, error) {
+	cond, err := cg.codegenExpr(e.Cond)
+	if err != nil {
+		return llvm.Value{}, err
+	}
+	// Convert condition to a bool by comparing non-equal to 0
+	zero := llvm.ConstInt(cg.ctx.Int32Type(), 0, false)
+	condV := cg.builder.CreateICmp(llvm.IntNE, cond, zero, "ifcond")
+	function := cg.builder.GetInsertBlock().Parent()
+	// Create blocks for the then and else cases.  Insert the 'then' block at the
+	// end of the function.
+	thenBB := cg.ctx.AddBasicBlock(function, "then")
+	elseBB := cg.ctx.AddBasicBlock(function, "else")
+	mergeBB := cg.ctx.AddBasicBlock(function, "ifcont")
+
+	cg.builder.CreateCondBr(condV, thenBB, elseBB)
+
+	cg.builder.SetInsertPointAtEnd(thenBB)
+	thenV, err := cg.codegenExpr(e.Then)
+
+	if err != nil {
+		return llvm.Value{}, err
+	}
+
+	cg.builder.CreateBr(mergeBB)
+	thenBB = cg.builder.GetInsertBlock()
+
+	cg.builder.SetInsertPointAtEnd(elseBB)
+	elseV, err := cg.codegenExpr(e.Else)
+
+	if err != nil {
+		return llvm.Value{}, err
+	}
+
+	cg.builder.CreateBr(mergeBB)
+	elseBB = cg.builder.GetInsertBlock()
+
+	cg.builder.SetInsertPointAtEnd(mergeBB)
+	phi := cg.builder.CreatePHI(cg.ctx.Int32Type(), "iftmp")
+	phi.AddIncoming(
+		[]llvm.Value{thenV, elseV},
+		[]llvm.BasicBlock{thenBB, elseBB},
+	)
+
+	return phi, nil
 }
 
 func (cg *CodeGen) codegenPrototype(proto parser.Prototype) (llvm.Value, error) {
