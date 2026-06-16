@@ -7,16 +7,20 @@ This is a simple toy language build soely to learn LLVM.
 - [Code generation to LLVM IR](https://llvm.org/docs/tutorial/MyFirstLanguageFrontend/LangImpl03.html)
 - [Extending the Language: Control Flow](https://llvm.org/docs/tutorial/MyFirstLanguageFrontend/LangImpl05.html)
 
+## Dependencies
+- LLVM 20
+- Clang
+
 ## Examples
 
-fibonacci
+`fibonacci`
 ```sh
 go run . -s examples/fib.k -o build/fib.o
 clang build/fib.o examples/lib.c -o build/fib
 ./build/fib
 ```
 
-putchar ffi
+`putchar ffi`
 ```sh
 go run . -s examples/std.k -o build/std.o
 clang build/std.o -o build/std
