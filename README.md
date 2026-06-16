@@ -10,6 +10,7 @@ This is a simple toy language build soely to learn LLVM.
 ## Dependencies
 - LLVM 20
 - Clang
+- Go 1.26
 
 ## Examples
 
