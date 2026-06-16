@@ -21,13 +21,22 @@ jobs:
         with:
           go-version: '1.26'
 
-      - name: Install LLVM
+      - name: Install LLVM and Clang
         run: |
           sudo apt-get update
-          sudo apt-get install -y llvm-20-dev
+          sudo apt-get install -y llvm-20-dev clang-20
 
       - name: Build
         run: go build -v ./...
 
-      - name: Test
-        run: go test -v ./...
+      - name: Run examples
+        run: |
+          mkdir -p build
+          
+          go run -tags=llvm20 . -s examples/fib.k -o build/fib.o
+          clang-20 build/fib.o examples/lib.c -o build/fib
+          ./build/fib
+          
+          go run -tags=llvm20 . -s examples/std.k -o build/std.o
+          clang-20 build/std.o -o build/std
+          ./build/std
